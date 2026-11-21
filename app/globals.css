@@ -2,66 +2,69 @@
 
 @layer base {
   body {
-    background-color: #041326 !important;
+    background-color: #090d16 !important;
     background-image:
-      radial-gradient(ellipse 80% 50% at 50% -10%, rgba(14, 165, 233, 0.22), transparent),
-      linear-gradient(to right, rgba(56, 189, 248, 0.04) 1px, transparent 1px),
-      linear-gradient(to bottom, rgba(56, 189, 248, 0.04) 1px, transparent 1px) !important;
-    background-size: 100% 100%, 48px 48px, 48px 48px !important;
+      radial-gradient(ellipse 80% 45% at 50% -10%, rgba(59, 130, 246, 0.14), transparent),
+      linear-gradient(to right, rgba(148, 163, 184, 0.04) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(148, 163, 184, 0.04) 1px, transparent 1px) !important;
+    background-size: 100% 100%, 56px 56px, 56px 56px !important;
     background-attachment: fixed !important;
-    color: #f8fafc !important;
+    color: #f1f5f9 !important;
+    -webkit-font-smoothing: antialiased;
   }
 }
 
-/* Nền thanh menu & thẻ nội dung hiệu ứng kính mờ xanh đại dương */
+/* Nền thanh điều hướng và khung nền chính */
 .bg-\[\#0A192F\],
 .bg-\[\#0A192F\]\/90,
 .bg-\[\#0A192F\]\/70 {
-  background-color: rgba(4, 19, 38, 0.85) !important;
+  background-color: rgba(9, 13, 22, 0.88) !important;
 }
 
+/* Thẻ nội dung xám than tinh tế */
 .bg-\[\#112240\],
 .bg-\[\#112240\]\/70 {
-  background-color: rgba(11, 37, 69, 0.72) !important;
+  background-color: rgba(17, 24, 39, 0.78) !important;
   backdrop-filter: blur(12px);
 }
 
-/* Viền khung mảnh tinh tế */
+/* Viền mảnh trung tính sang trọng */
 .border-slate-800,
 .border-slate-800\/80,
 .border-slate-700 {
-  border-color: rgba(56, 189, 248, 0.18) !important;
+  border-color: rgba(148, 163, 184, 0.16) !important;
 }
 
-/* Đồng bộ toàn bộ chữ nhấn, nút bấm và thanh trích dẫn sang Xanh Nước Biển (Hành Thủy) */
+/* Điểm nhấn Xanh Dương Công Nghiệp (Cobalt / Royal Blue) */
 .text-amber-400,
 .text-amber-500,
 .text-orange-400 {
-  color: #38bdf8 !important;
+  color: #60a5fa !important;
 }
 
 .bg-amber-400,
 .bg-amber-500,
 .bg-orange-500,
 .bg-orange-600 {
-  background: linear-gradient(135deg, #0284c7 0%, #0ea5e9 100%) !important;
+  background-color: #2563eb !important;
   color: #ffffff !important;
-  box-shadow: 0 4px 20px rgba(14, 165, 233, 0.3);
+  box-shadow: 0 4px 16px rgba(37, 99, 235, 0.28);
 }
 
 .bg-amber-400:hover,
 .bg-amber-500:hover,
 .bg-orange-500:hover,
 .hover\:bg-amber-300:hover {
-  background: linear-gradient(135deg, #0ea5e9 0%, #38bdf8 100%) !important;
+  background-color: #3b82f6 !important;
 }
 
 .border-amber-400,
 .border-amber-500,
 .border-orange-500 {
-  border-color: #0ea5e9 !important;
+  border-color: #3b82f6 !important;
 }
 
+/* Hiển thị chuẩn dấu tiếng Việt cho câu trích dẫn */
 blockquote {
   font-family: system-ui, -apple-system, sans-serif !important;
   font-style: normal !important;
