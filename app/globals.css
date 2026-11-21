@@ -2,7 +2,49 @@
 
 @layer base {
   body {
-    background-color: #0A192F;
-    color: #f1f5f9;
+    /* Nền xanh nước biển sâu chuyển sắc nhẹ (hành Thủy) */
+    background: radial-gradient(circle at top right, #063954 0%, #032234 55%, #021826 100%) !important;
+    background-attachment: fixed !important;
+    color: #f0f9ff !important;
   }
+}
+
+/* Ghi đè nền tối cũ sang tông xanh nước biển sâu & xanh ngọc */
+.bg-\[\#0A192F\],
+.bg-\[\#0A192F\]\/90,
+.bg-\[\#0A192F\]\/70 {
+  background-color: rgba(3, 34, 52, 0.88) !important;
+}
+
+.bg-\[\#112240\],
+.bg-\[\#112240\]\/70 {
+  background-color: rgba(8, 51, 74, 0.78) !important;
+}
+
+/* Viền khung ánh xanh đại dương */
+.border-slate-800,
+.border-slate-800\/80,
+.border-slate-700 {
+  border-color: rgba(56, 189, 248, 0.22) !important;
+}
+
+/* Điểm nhấn màu xanh nước sáng (Cyan/Aqua - bản mệnh Thủy) thay cho màu cam/vàng cũ */
+.text-amber-400 {
+  color: #38bdf8 !important;
+}
+
+.bg-amber-400 {
+  background-color: #0ea5e9 !important;
+  color: #ffffff !important;
+}
+
+.bg-amber-400:hover,
+.hover\:bg-amber-300:hover {
+  background-color: #38bdf8 !important;
+}
+
+.border-amber-400,
+.hover\:border-amber-400\/60:hover,
+.hover\:border-amber-400\/50:hover {
+  border-color: #38bdf8 !important;
 }
