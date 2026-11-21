@@ -1,276 +1,265 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { createClient } from '@/utils/supabase/client';
+import { useRouter } from 'next/navigation';
+import { createClient } from '@supabase/supabase-js';
+import ImageCropModal from './ImageCropModal';
 
-function toSlug(text: string) {
-  return text
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/đ/g, 'd')
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/(^-|-$)+/g, '');
-}
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 export default function AdminDashboard({
   userEmail,
   initialProfile,
-  initialDomains,
-  initialCourses,
-  initialLibrary,
-  initialInsights,
-  initialProjects,
-  initialMessages,
+  initialDomains = [],
+  initialCourses = [],
+  initialLibrary = [],
+  initialInsights = [],
+  initialProjects = [],
 }: any) {
   const router = useRouter();
-  const supabase = createClient();
+  const [activeTab, setActiveTab] = useState<'profile' | 'domains' | 'courses' | 'library' | 'insights' | 'projects'>('profile');
+  const [saving, setSaving] = useState(false);
 
-  const [activeTab, setActiveTab] = useState<
-    'profile' | 'domains' | 'courses' | 'library' | 'insights' | 'projects' | 'messages'
-  >('profile');
-  const [notice, setNotice] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  // State Hồ sơ cá nhân
+  const [fullName, setFullName] = useState(initialProfile?.full_name || '');
+  const [headline, setHeadline] = useState(initialProfile?.headline || '');
+  const [quote, setQuote] = useState(initialProfile?.philosophy_quote || '');
+  const [shortBio, setShortBio] = useState(initialProfile?.short_bio || '');
+  const [longBio, setLongBio] = useState(initialProfile?.long_bio || '');
+  const [avatarUrl, setAvatarUrl] = useState(initialProfile?.avatar_url || '');
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [rawAvatarFile, setRawAvatarFile] = useState<File | null>(null);
 
-  // 1. State Hồ sơ
-  const [profile, setProfile] = useState({
-    full_name: initialProfile?.full_name || '',
-    professional_title: initialProfile?.professional_title || '',
-    hero_badge: initialProfile?.hero_badge || 'PERSONAL KNOWLEDGE PLATFORM',
-    philosophy_quote: initialProfile?.philosophy_quote || '',
-    short_bio: initialProfile?.short_bio || '',
-    full_biography: initialProfile?.full_biography || '',
-    avatar_url: initialProfile?.avatar_url || '',
-    contact_email: initialProfile?.contact_email || '',
-  });
+  // State Lĩnh vực
+  const [domainCode, setDomainCode] = useState('');
+  const [domainName, setDomainName] = useState('');
+  const [domainDesc, setDomainDesc] = useState('');
 
-  // 2. State Lĩnh vực
-  const [domainForm, setDomainForm] = useState({ code: '01', name: '', description: '' });
+  // State Khóa học
+  const [courseTitle, setCourseTitle] = useState('');
+  const [courseSlug, setCourseSlug] = useState('');
+  const [courseSummary, setCourseSummary] = useState('');
+  const [courseLevel, setCourseLevel] = useState('Cơ bản - Thực hành');
+  const [courseDomainId, setCourseDomainId] = useState(initialDomains[0]?.id || '');
 
-  // 3. State Khóa học
-  const [courseForm, setCourseForm] = useState({
-    title: '',
-    domain_id: initialDomains[0]?.id || '',
-    level: 'Beginner',
-    summary: '',
-    description: '',
-    is_featured: true,
-    is_published: true,
-  });
-
-  // 4. State Thư viện
-  const [libForm, setLibForm] = useState({
-    title: '',
-    domain_id: initialDomains[0]?.id || '',
-    resource_type: 'PDF',
-    description: '',
-    external_url: '',
-    note_content: '',
-  });
+  // State Thư viện
+  const [libTitle, setLibTitle] = useState('');
+  const [libType, setLibType] = useState('Giáo trình PDF');
+  const [libDesc, setLibDesc] = useState('');
   const [libFile, setLibFile] = useState<File | null>(null);
 
-  // 5. State Insights
-  const [insightForm, setInsightForm] = useState({
-    title: '',
-    domain_id: initialDomains[0]?.id || '',
-    category: 'Nghiên cứu',
-    reading_time_minutes: 5,
-    excerpt: '',
-    content_markdown: '',
-    is_published: true,
-  });
+  // State Bài viết Insights
+  const [insightTitle, setInsightTitle] = useState('');
+  const [insightSlug, setInsightSlug] = useState('');
+  const [insightCategory, setInsightCategory] = useState('Kỹ thuật Cơ khí');
+  const [insightExcerpt, setInsightExcerpt] = useState('');
+  const [insightContent, setInsightContent] = useState('');
 
-  // 6. State Dự án
-  const [projectForm, setProjectForm] = useState({
-    title: '',
-    domain_id: initialDomains[0]?.id || '',
-    summary: '',
-    problem_statement: '',
-    methodology: '',
-    results: '',
-    lessons_learned: '',
-    is_featured: true,
-    is_published: true,
-  });
-  const [projectCover, setProjectCover] = useState<File | null>(null);
-  const [project3D, setProject3D] = useState<File | null>(null);
+  // State Dự án & 3D
+  const [projTitle, setProjTitle] = useState('');
+  const [projSlug, setProjSlug] = useState('');
+  const [projSummary, setProjSummary] = useState('');
+  const [projProblem, setProjProblem] = useState('');
+  const [projMethod, setProjMethod] = useState('');
+  const [projResults, setProjResults] = useState('');
+  const [projLessons, setProjLessons] = useState('');
+  const [projCoverFile, setProjCoverFile] = useState<File | null>(null);
+  const [projModelFile, setProjModelFile] = useState<File | null>(null);
 
-  function showMsg(msg: string) {
-    setNotice(msg);
-    router.refresh();
-    setTimeout(() => setNotice(null), 4000);
-  }
-
-  async function uploadFile(file: File, folder: string): Promise<string | null> {
+  const uploadMedia = async (file: File, folder: string) => {
     const ext = file.name.split('.').pop();
-    const filePath = `${folder}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+    const filePath = `${folder}/${Date.now()}-${Math.random().toString(36).slice(2, 7)}.${ext}`;
     const { error } = await supabase.storage.from('media').upload(filePath, file);
-    if (error) {
-      alert('Lỗi tải file lên Storage: ' + error.message);
-      return null;
-    }
+    if (error) throw error;
     const { data } = supabase.storage.from('media').getPublicUrl(filePath);
     return data.publicUrl;
-  }
+  };
 
-  async function handleLogout() {
+  const handleLogout = async () => {
     await supabase.auth.signOut();
     router.push('/login');
-    router.refresh();
-  }
+  };
 
-  // --- CÁC HÀM LƯU DỮ LIỆU VÀO DATABASE ---
-
-  async function saveProfile(e: React.FormEvent) {
+  const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
-    setBusy(true);
-    const { error } = await supabase.from('site_profile').upsert({
-      id: 1,
-      ...profile,
-      updated_at: new Date().toISOString(),
-    });
-    setBusy(false);
-    if (error) return alert(error.message);
-    showMsg('Đã cập nhật hồ sơ thương hiệu cá nhân lên website.');
-  }
+    setSaving(true);
+    try {
+      let finalAvatarUrl = avatarUrl;
+      if (avatarFile) {
+        finalAvatarUrl = await uploadMedia(avatarFile, 'avatars');
+        setAvatarUrl(finalAvatarUrl);
+      }
 
-  async function handleAvatarUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setBusy(true);
-    const url = await uploadFile(file, 'avatars');
-    setBusy(false);
-    if (url) {
-      setProfile((prev) => ({ ...prev, avatar_url: url }));
-      showMsg('Đã tải ảnh đại diện lên kho lưu trữ. Nhấn Lưu Hồ sơ để áp dụng.');
+      const payload = {
+        full_name: fullName,
+        headline,
+        philosophy_quote: quote,
+        short_bio: shortBio,
+        long_bio: longBio,
+        avatar_url: finalAvatarUrl,
+      };
+
+      if (initialProfile?.id) {
+        const { error } = await supabase.from('profiles').update(payload).eq('id', initialProfile.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from('profiles').insert(payload);
+        if (error) throw error;
+      }
+      alert('Đã cập nhật Hồ sơ Cá nhân thành công!');
+      setAvatarFile(null);
+      router.refresh();
+    } catch (err: any) {
+      alert(err.message || 'Lỗi khi lưu hồ sơ');
+    } finally {
+      setSaving(false);
     }
-  }
+  };
 
-  async function addDomain(e: React.FormEvent) {
+  const handleAddDomain = async (e: React.FormEvent) => {
     e.preventDefault();
-    setBusy(true);
-    const { error } = await supabase.from('domains').insert({
-      ...domainForm,
-      slug: `${toSlug(domainForm.name)}-${Date.now().toString().slice(-4)}`,
-    });
-    setBusy(false);
-    if (error) return alert(error.message);
-    setDomainForm({ code: '04', name: '', description: '' });
-    showMsg('Đã thêm lĩnh vực chuyên môn mới.');
-  }
-
-  async function addCourse(e: React.FormEvent) {
-    e.preventDefault();
-    setBusy(true);
-    const { error } = await supabase.from('courses').insert({
-      ...courseForm,
-      domain_id: courseForm.domain_id || null,
-      slug: `${toSlug(courseForm.title)}-${Date.now().toString().slice(-4)}`,
-    });
-    setBusy(false);
-    if (error) return alert(error.message);
-    setCourseForm({
-      title: '',
-      domain_id: initialDomains[0]?.id || '',
-      level: 'Beginner',
-      summary: '',
-      description: '',
-      is_featured: true,
-      is_published: true,
-    });
-    showMsg('Đã tạo khóa học mới trong cơ sở dữ liệu.');
-  }
-
-  async function addLibraryResource(e: React.FormEvent) {
-    e.preventDefault();
-    setBusy(true);
-    let fileUrl = null;
-    if (libFile) {
-      fileUrl = await uploadFile(libFile, 'library');
+    setSaving(true);
+    try {
+      const { error } = await supabase.from('domains').insert({
+        code: domainCode,
+        name: domainName,
+        description: domainDesc,
+      });
+      if (error) throw error;
+      alert('Đã thêm Lĩnh vực mới!');
+      setDomainCode('');
+      setDomainName('');
+      setDomainDesc('');
+      router.refresh();
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setSaving(false);
     }
-    const { error } = await supabase.from('library_resources').insert({
-      ...libForm,
-      domain_id: libForm.domain_id || null,
-      file_url: fileUrl,
-      is_published: true,
-    });
-    setBusy(false);
-    if (error) return alert(error.message);
-    setLibForm({
-      title: '',
-      domain_id: initialDomains[0]?.id || '',
-      resource_type: 'PDF',
-      description: '',
-      external_url: '',
-      note_content: '',
-    });
-    setLibFile(null);
-    showMsg('Đã lưu tài liệu vào Thư viện Tri thức.');
-  }
+  };
 
-  async function addInsight(e: React.FormEvent) {
+  const handleAddCourse = async (e: React.FormEvent) => {
     e.preventDefault();
-    setBusy(true);
-    const { error } = await supabase.from('insights').insert({
-      ...insightForm,
-      domain_id: insightForm.domain_id || null,
-      slug: `${toSlug(insightForm.title)}-${Date.now().toString().slice(-4)}`,
-    });
-    setBusy(false);
-    if (error) return alert(error.message);
-    setInsightForm({
-      title: '',
-      domain_id: initialDomains[0]?.id || '',
-      category: 'Nghiên cứu',
-      reading_time_minutes: 5,
-      excerpt: '',
-      content_markdown: '',
-      is_published: true,
-    });
-    showMsg('Đã xuất bản bài viết mới.');
-  }
+    setSaving(true);
+    try {
+      const { error } = await supabase.from('courses').insert({
+        title: courseTitle,
+        slug: courseSlug,
+        summary: courseSummary,
+        level: courseLevel,
+        domain_id: courseDomainId || null,
+        is_published: true,
+      });
+      if (error) throw error;
+      alert('Đã tạo Khóa học mới!');
+      setCourseTitle('');
+      setCourseSlug('');
+      setCourseSummary('');
+      router.refresh();
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
 
-  async function addProject(e: React.FormEvent) {
+  const handleAddLibrary = async (e: React.FormEvent) => {
     e.preventDefault();
-    setBusy(true);
-    let coverUrl = null;
-    let modelUrl = null;
-    if (projectCover) coverUrl = await uploadFile(projectCover, 'projects');
-    if (project3D) modelUrl = await uploadFile(project3D, 'models-3d');
+    setSaving(true);
+    try {
+      let fileUrl = '';
+      if (libFile) {
+        fileUrl = await uploadMedia(libFile, 'library');
+      }
+      const { error } = await supabase.from('library_resources').insert({
+        title: libTitle,
+        resource_type: libType,
+        description: libDesc,
+        file_url: fileUrl,
+        is_published: true,
+      });
+      if (error) throw error;
+      alert('Đã tải lên Tài liệu Thư viện!');
+      setLibTitle('');
+      setLibDesc('');
+      setLibFile(null);
+      router.refresh();
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
 
-    const { error } = await supabase.from('projects').insert({
-      ...projectForm,
-      domain_id: projectForm.domain_id || null,
-      cover_image_url: coverUrl,
-      model_3d_url: modelUrl,
-      slug: `${toSlug(projectForm.title)}-${Date.now().toString().slice(-4)}`,
-    });
-    setBusy(false);
-    if (error) return alert(error.message);
-    setProjectForm({
-      title: '',
-      domain_id: initialDomains[0]?.id || '',
-      summary: '',
-      problem_statement: '',
-      methodology: '',
-      results: '',
-      lessons_learned: '',
-      is_featured: true,
-      is_published: true,
-    });
-    setProjectCover(null);
-    setProject3D(null);
-    showMsg('Đã thêm dự án thực tế mới.');
-  }
+  const handleAddInsight = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      const { error } = await supabase.from('insights').insert({
+        title: insightTitle,
+        slug: insightSlug,
+        category: insightCategory,
+        excerpt: insightExcerpt,
+        content_markdown: insightContent,
+        is_published: true,
+      });
+      if (error) throw error;
+      alert('Đã xuất bản Bài viết mới!');
+      setInsightTitle('');
+      setInsightSlug('');
+      setInsightExcerpt('');
+      setInsightContent('');
+      router.refresh();
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
 
-  async function deleteRecord(table: string, id: string) {
-    if (!confirm('Bạn có chắc muốn xóa mục này khỏi cơ sở dữ liệu?')) return;
-    const { error } = await supabase.from(table).delete().eq('id', id);
-    if (error) return alert(error.message);
-    showMsg('Đã xóa bản ghi.');
-  }
+  const handleAddProject = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      let coverUrl = '';
+      let modelUrl = '';
+      if (projCoverFile) coverUrl = await uploadMedia(projCoverFile, 'projects');
+      if (projModelFile) modelUrl = await uploadMedia(projModelFile, 'models');
+
+      const { error } = await supabase.from('projects').insert({
+        title: projTitle,
+        slug: projSlug,
+        summary: projSummary,
+        problem_statement: projProblem,
+        methodology: projMethod,
+        results: projResults,
+        lessons_learned: projLessons,
+        cover_image_url: coverUrl || null,
+        model_3d_url: modelUrl || null,
+        is_published: true,
+      });
+      if (error) throw error;
+      alert('Đã lưu Dự án thành công!');
+      setProjTitle('');
+      setProjSlug('');
+      setProjSummary('');
+      setProjProblem('');
+      setProjMethod('');
+      setProjResults('');
+      setProjLessons('');
+      setProjCoverFile(null);
+      setProjModelFile(null);
+      router.refresh();
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const tabs = [
     { id: 'profile', label: 'Hồ sơ Cá nhân' },
@@ -279,521 +268,427 @@ export default function AdminDashboard({
     { id: 'library', label: `Thư viện (${initialLibrary.length})` },
     { id: 'insights', label: `Bài viết (${initialInsights.length})` },
     { id: 'projects', label: `Dự án & 3D (${initialProjects.length})` },
-    { id: 'messages', label: `Hộp thư (${initialMessages.length})` },
   ] as const;
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900">
-      {/* Thanh tiêu đề Admin */}
-      <header className="bg-[#0A192F] text-white border-b border-slate-800">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
+    <div className="min-h-screen px-6 py-10 text-slate-100">
+      <div className="mx-auto max-w-5xl">
+        <div className="flex flex-wrap items-center justify-between gap-4 border-b border-sky-400/20 pb-6">
           <div>
-            <span className="font-mono text-[11px] uppercase tracking-widest text-amber-400">
+            <p className="font-mono text-xs uppercase tracking-widest text-sky-400">
               Content Management System
-            </span>
-            <h1 className="text-lg font-bold">Bảng Điều Khiển Quản Trị</h1>
+            </p>
+            <h1 className="mt-1 text-2xl font-bold text-white">Bảng Điều Khiển Quản Trị</h1>
           </div>
-          <div className="flex items-center gap-4 text-xs">
-            <span className="hidden text-slate-400 sm:inline">{userEmail}</span>
+          <div className="flex items-center gap-3 text-xs">
+            <span className="text-slate-400">{userEmail}</span>
             <Link
               href="/"
-              target="_blank"
-              className="rounded border border-slate-600 px-3 py-1.5 hover:border-white"
+              className="rounded-lg border border-sky-400/30 px-3 py-1.5 text-sky-300 hover:bg-sky-500/10"
             >
-              Xem Website &nearr;
+              Xem Website ↗
             </Link>
             <button
               onClick={handleLogout}
-              className="rounded bg-red-600/80 px-3 py-1.5 font-medium hover:bg-red-600"
+              className="rounded-lg bg-rose-500/20 px-3 py-1.5 text-rose-300 hover:bg-rose-500/30"
             >
               Đăng xuất
             </button>
           </div>
         </div>
-      </header>
 
-      <div className="mx-auto max-w-6xl px-6 py-8">
-        {notice && (
-          <div className="mb-6 rounded-lg border border-emerald-500/40 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800">
-            {notice}
-          </div>
-        )}
-
-        {/* Thanh chuyển mục quản lý */}
-        <div className="mb-8 flex flex-wrap gap-2 border-b border-slate-200 pb-4">
-          {tabs.map((t) => (
+        <div className="mt-6 flex flex-wrap gap-2">
+          {tabs.map((tab) => (
             <button
-              key={t.id}
-              onClick={() => setActiveTab(t.id)}
-              className={`rounded-md px-4 py-2 text-sm font-medium transition ${
-                activeTab === t.id
-                  ? 'bg-[#0A192F] text-white'
-                  : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`rounded-lg px-4 py-2 text-sm font-medium transition ${
+                activeTab === tab.id
+                  ? 'bg-sky-500 text-white shadow-lg shadow-sky-500/25'
+                  : 'border border-sky-400/20 bg-[#061A38]/70 text-slate-300 hover:border-sky-400/50'
               }`}
             >
-              {t.label}
+              {tab.label}
             </button>
           ))}
         </div>
 
-        {/* TAB 1: HỒ SƠ THƯƠNG HIỆU CÁ NHÂN */}
-        {activeTab === 'profile' && (
-          <form onSubmit={saveProfile} className="space-y-5 rounded-xl border border-slate-200 bg-white p-6">
-            <h2 className="text-lg font-bold">Cập nhật Thông tin Thương hiệu & Trang chủ</h2>
-            <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-              <div>
-                <label className="block text-xs font-semibold uppercase text-slate-500">Họ và Tên hiển thị</label>
-                <input
-                  required
-                  value={profile.full_name}
-                  onChange={(e) => setProfile({ ...profile, full_name: e.target.value })}
-                  className="mt-1 w-full rounded border border-slate-300 px-3 py-2 text-sm"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold uppercase text-slate-500">Chức danh chuyên môn</label>
-                <input
-                  required
-                  value={profile.professional_title}
-                  onChange={(e) => setProfile({ ...profile, professional_title: e.target.value })}
-                  className="mt-1 w-full rounded border border-slate-300 px-3 py-2 text-sm"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold uppercase text-slate-500">Nhãn định vị Hero</label>
-                <input
-                  value={profile.hero_badge}
-                  onChange={(e) => setProfile({ ...profile, hero_badge: e.target.value })}
-                  className="mt-1 w-full rounded border border-slate-300 px-3 py-2 text-sm"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold uppercase text-slate-500">Email liên hệ</label>
-                <input
-                  type="email"
-                  required
-                  value={profile.contact_email}
-                  onChange={(e) => setProfile({ ...profile, contact_email: e.target.value })}
-                  className="mt-1 w-full rounded border border-slate-300 px-3 py-2 text-sm"
-                />
-              </div>
-            </div>
+        <div className="mt-8 rounded-2xl border border-sky-400/20 bg-[#061A38]/70 p-6 md:p-8">
+          {activeTab === 'profile' && (
+            <form onSubmit={handleSaveProfile} className="space-y-5">
+              <h2 className="text-xl font-bold text-white">Cập nhật Hồ sơ Cá nhân</h2>
 
-            <div>
-              <label className="block text-xs font-semibold uppercase text-slate-500">Ảnh chân dung đại diện</label>
-              <div className="mt-1 flex items-center gap-4">
-                <input type="file" accept="image/*" onChange={handleAvatarUpload} className="text-sm" />
-                {profile.avatar_url && (
-                  <img src={profile.avatar_url} alt="Avatar" className="h-14 w-14 rounded object-cover border" />
+              <div className="grid gap-5 md:grid-cols-2">
+                <div>
+                  <label className="block text-xs font-mono text-sky-400">Họ và tên hiển thị</label>
+                  <input
+                    type="text"
+                    required
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    className="mt-1.5 w-full rounded-lg border border-sky-400/25 bg-[#020813] px-4 py-2.5 text-white focus:border-sky-400 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-mono text-sky-400">Chức danh chuyên môn</label>
+                  <input
+                    type="text"
+                    value={headline}
+                    onChange={(e) => setHeadline(e.target.value)}
+                    className="mt-1.5 w-full rounded-lg border border-sky-400/25 bg-[#020813] px-4 py-2.5 text-white focus:border-sky-400 focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-mono text-sky-400">Triết lý / Câu trích dẫn nổi bật</label>
+                <input
+                  type="text"
+                  value={quote}
+                  onChange={(e) => setQuote(e.target.value)}
+                  className="mt-1.5 w-full rounded-lg border border-sky-400/25 bg-[#020813] px-4 py-2.5 text-white focus:border-sky-400 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-mono text-sky-400">Giới thiệu ngắn trên Trang chủ</label>
+                <textarea
+                  rows={3}
+                  value={shortBio}
+                  onChange={(e) => setShortBio(e.target.value)}
+                  className="mt-1.5 w-full rounded-lg border border-sky-400/25 bg-[#020813] px-4 py-2.5 text-white focus:border-sky-400 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-mono text-sky-400">Hồ sơ chi tiết (Trang Giới thiệu /about)</label>
+                <textarea
+                  rows={5}
+                  value={longBio}
+                  onChange={(e) => setLongBio(e.target.value)}
+                  className="mt-1.5 w-full rounded-lg border border-sky-400/25 bg-[#020813] px-4 py-2.5 text-white focus:border-sky-400 focus:outline-none"
+                />
+              </div>
+
+              <div className="rounded-xl border border-sky-400/20 bg-[#020813]/60 p-4">
+                <label className="block text-xs font-mono text-sky-400">
+                  Ảnh đại diện (Tự động mở công cụ cắt &amp; căn khung sau khi chọn ảnh)
+                </label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => {
+                    const selected = e.target.files?.[0];
+                    if (selected) setRawAvatarFile(selected);
+                    e.target.value = '';
+                  }}
+                  className="mt-2 block text-sm text-slate-300 file:mr-4 file:rounded-lg file:border-0 file:bg-sky-500 file:px-4 file:py-2 file:text-xs file:font-semibold file:text-white hover:file:bg-sky-400"
+                />
+                {avatarFile && (
+                  <p className="mt-2 text-xs text-emerald-400">
+                    ✓ Đã cắt ảnh xong ({avatarFile.name}). Bấm &ldquo;Lưu thay đổi Hồ sơ&rdquo; bên dưới để cập nhật lên web.
+                  </p>
                 )}
               </div>
-            </div>
 
-            <div>
-              <label className="block text-xs font-semibold uppercase text-slate-500">Triết lý học tập & nghiên cứu</label>
-              <textarea
-                rows={2}
-                required
-                value={profile.philosophy_quote}
-                onChange={(e) => setProfile({ ...profile, philosophy_quote: e.target.value })}
-                className="mt-1 w-full rounded border border-slate-300 px-3 py-2 text-sm"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold uppercase text-slate-500">Giới thiệu ngắn trên Trang chủ</label>
-              <textarea
-                rows={3}
-                required
-                value={profile.short_bio}
-                onChange={(e) => setProfile({ ...profile, short_bio: e.target.value })}
-                className="mt-1 w-full rounded border border-slate-300 px-3 py-2 text-sm"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold uppercase text-slate-500">Hành trình & Tiểu sử chi tiết (Trang About)</label>
-              <textarea
-                rows={6}
-                required
-                value={profile.full_biography}
-                onChange={(e) => setProfile({ ...profile, full_biography: e.target.value })}
-                className="mt-1 w-full rounded border border-slate-300 px-3 py-2 text-sm"
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={busy}
-              className="rounded-md bg-amber-600 px-6 py-2.5 text-sm font-semibold text-white hover:bg-amber-500"
-            >
-              {busy ? 'Đang lưu...' : 'Lưu thay đổi Hồ sơ'}
-            </button>
-          </form>
-        )}
-
-        {/* TAB 2: LĨNH VỰC CHUYÊN MÔN */}
-        {activeTab === 'domains' && (
-          <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
-            <form onSubmit={addDomain} className="lg:col-span-5 space-y-4 rounded-xl border border-slate-200 bg-white p-6">
-              <h2 className="font-bold">Thêm Lĩnh vực Mới</h2>
-              <input
-                placeholder="Mã số (VD: 01)"
-                required
-                value={domainForm.code}
-                onChange={(e) => setDomainForm({ ...domainForm, code: e.target.value })}
-                className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
-              />
-              <input
-                placeholder="Tên lĩnh vực chuyên môn"
-                required
-                value={domainForm.name}
-                onChange={(e) => setDomainForm({ ...domainForm, name: e.target.value })}
-                className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
-              />
-              <textarea
-                rows={3}
-                placeholder="Mô tả trọng tâm nghiên cứu..."
-                required
-                value={domainForm.description}
-                onChange={(e) => setDomainForm({ ...domainForm, description: e.target.value })}
-                className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
-              />
-              <button type="submit" disabled={busy} className="w-full rounded bg-[#0A192F] py-2 text-sm font-semibold text-white">
-                Thêm Lĩnh vực
+              <button
+                type="submit"
+                disabled={saving}
+                className="rounded-lg bg-sky-500 px-6 py-2.5 text-sm font-semibold text-white hover:bg-sky-400 disabled:opacity-50"
+              >
+                {saving ? 'Đang lưu...' : 'Lưu thay đổi Hồ sơ'}
               </button>
             </form>
+          )}
 
-            <div className="lg:col-span-7 space-y-3">
-              {initialDomains.map((d: any) => (
-                <div key={d.id} className="flex items-start justify-between rounded-lg border border-slate-200 bg-white p-4">
-                  <div>
-                    <span className="font-mono text-xs text-amber-700">{d.code}</span>
-                    <h3 className="font-semibold">{d.name}</h3>
-                    <p className="mt-1 text-xs text-slate-600">{d.description}</p>
-                  </div>
-                  <button onClick={() => deleteRecord('domains', d.id)} className="text-xs text-red-600 hover:underline">
-                    Xóa
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* TAB 3: KHÓA HỌC */}
-        {activeTab === 'courses' && (
-          <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
-            <form onSubmit={addCourse} className="lg:col-span-5 space-y-4 rounded-xl border border-slate-200 bg-white p-6">
-              <h2 className="font-bold">Tạo Khóa học Mới</h2>
-              <input
-                placeholder="Tên khóa học"
-                required
-                value={courseForm.title}
-                onChange={(e) => setCourseForm({ ...courseForm, title: e.target.value })}
-                className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
+          {activeTab === 'domains' && (
+            <form onSubmit={handleAddDomain} className="space-y-4">
+              <h2 className="text-xl font-bold text-white">Thêm Lĩnh vực Chuyên môn</h2>
+              <div className="grid gap-4 md:grid-cols-2">
+                <input
+                  type="text"
+                  placeholder="Mã lĩnh vực (VD: 01)"
+                  required
+                  value={domainCode}
+                  onChange={(e) => setDomainCode(e.target.value)}
+                  className="rounded-lg border border-sky-400/25 bg-[#020813] px-4 py-2.5 text-white"
+                />
+                <input
+                  type="text"
+                  placeholder="Tên lĩnh vực (VD: CAD/CAM & Gia công CNC)"
+                  required
+                  value={domainName}
+                  onChange={(e) => setDomainName(e.target.value)}
+                  className="rounded-lg border border-sky-400/25 bg-[#020813] px-4 py-2.5 text-white"
+                />
+              </div>
+              <textarea
+                rows={3}
+                placeholder="Mô tả ngắn gọn..."
+                value={domainDesc}
+                onChange={(e) => setDomainDesc(e.target.value)}
+                className="w-full rounded-lg border border-sky-400/25 bg-[#020813] px-4 py-2.5 text-white"
               />
-              <div className="grid grid-cols-2 gap-3">
+              <button
+                type="submit"
+                disabled={saving}
+                className="rounded-lg bg-sky-500 px-6 py-2.5 text-sm font-semibold text-white hover:bg-sky-400"
+              >
+                {saving ? 'Đang lưu...' : 'Thêm Lĩnh vực'}
+              </button>
+            </form>
+          )}
+
+          {activeTab === 'courses' && (
+            <form onSubmit={handleAddCourse} className="space-y-4">
+              <h2 className="text-xl font-bold text-white">Tạo Khóa học Chuyên sâu</h2>
+              <div className="grid gap-4 md:grid-cols-2">
+                <input
+                  type="text"
+                  placeholder="Tên khóa học (VD: Lập trình Mastercam 2D Thực chiến)"
+                  required
+                  value={courseTitle}
+                  onChange={(e) => setCourseTitle(e.target.value)}
+                  className="rounded-lg border border-sky-400/25 bg-[#020813] px-4 py-2.5 text-white"
+                />
+                <input
+                  type="text"
+                  placeholder="Slug không dấu (VD: khoa-hoc-mastercam-2d)"
+                  required
+                  value={courseSlug}
+                  onChange={(e) => setCourseSlug(e.target.value)}
+                  className="rounded-lg border border-sky-400/25 bg-[#020813] px-4 py-2.5 text-white"
+                />
+              </div>
+              <div className="grid gap-4 md:grid-cols-2">
+                <input
+                  type="text"
+                  placeholder="Trình độ (VD: Cơ bản - Nâng cao)"
+                  value={courseLevel}
+                  onChange={(e) => setCourseLevel(e.target.value)}
+                  className="rounded-lg border border-sky-400/25 bg-[#020813] px-4 py-2.5 text-white"
+                />
                 <select
-                  value={courseForm.domain_id}
-                  onChange={(e) => setCourseForm({ ...courseForm, domain_id: e.target.value })}
-                  className="rounded border border-slate-300 px-3 py-2 text-sm"
+                  value={courseDomainId}
+                  onChange={(e) => setCourseDomainId(e.target.value)}
+                  className="rounded-lg border border-sky-400/25 bg-[#020813] px-4 py-2.5 text-white"
                 >
                   <option value="">-- Chọn lĩnh vực --</option>
                   {initialDomains.map((d: any) => (
-                    <option key={d.id} value={d.id}>{d.name}</option>
+                    <option key={d.id} value={d.id}>
+                      {d.name}
+                    </option>
                   ))}
                 </select>
-                <select
-                  value={courseForm.level}
-                  onChange={(e) => setCourseForm({ ...courseForm, level: e.target.value })}
-                  className="rounded border border-slate-300 px-3 py-2 text-sm"
-                >
-                  <option value="Beginner">Beginner</option>
-                  <option value="Intermediate">Intermediate</option>
-                  <option value="Advanced">Advanced</option>
-                </select>
+              </div>
+              <textarea
+                rows={3}
+                placeholder="Tóm tắt mục tiêu và nội dung khóa học..."
+                value={courseSummary}
+                onChange={(e) => setCourseSummary(e.target.value)}
+                className="w-full rounded-lg border border-sky-400/25 bg-[#020813] px-4 py-2.5 text-white"
+              />
+              <button
+                type="submit"
+                disabled={saving}
+                className="rounded-lg bg-sky-500 px-6 py-2.5 text-sm font-semibold text-white hover:bg-sky-400"
+              >
+                {saving ? 'Đang lưu...' : 'Xuất bản Khóa học'}
+              </button>
+            </form>
+          )}
+
+          {activeTab === 'library' && (
+            <form onSubmit={handleAddLibrary} className="space-y-4">
+              <h2 className="text-xl font-bold text-white">Tải lên Tài liệu Thư viện</h2>
+              <div className="grid gap-4 md:grid-cols-2">
+                <input
+                  type="text"
+                  placeholder="Tên tài liệu / Giáo trình"
+                  required
+                  value={libTitle}
+                  onChange={(e) => setLibTitle(e.target.value)}
+                  className="rounded-lg border border-sky-400/25 bg-[#020813] px-4 py-2.5 text-white"
+                />
+                <input
+                  type="text"
+                  placeholder="Loại tài liệu (VD: Giáo trình PDF, Bảng tính Excel)"
+                  value={libType}
+                  onChange={(e) => setLibType(e.target.value)}
+                  className="rounded-lg border border-sky-400/25 bg-[#020813] px-4 py-2.5 text-white"
+                />
+              </div>
+              <textarea
+                rows={3}
+                placeholder="Mô tả nội dung tài liệu..."
+                value={libDesc}
+                onChange={(e) => setLibDesc(e.target.value)}
+                className="w-full rounded-lg border border-sky-400/25 bg-[#020813] px-4 py-2.5 text-white"
+              />
+              <input
+                type="file"
+                onChange={(e) => setLibFile(e.target.files?.[0] || null)}
+                className="block text-sm text-slate-300"
+              />
+              <button
+                type="submit"
+                disabled={saving}
+                className="rounded-lg bg-sky-500 px-6 py-2.5 text-sm font-semibold text-white hover:bg-sky-400"
+              >
+                {saving ? 'Đang tải lên...' : 'Lưu vào Thư viện'}
+              </button>
+            </form>
+          )}
+
+          {activeTab === 'insights' && (
+            <form onSubmit={handleAddInsight} className="space-y-4">
+              <h2 className="text-xl font-bold text-white">Viết bài Phân tích Kỹ thuật (Insights)</h2>
+              <div className="grid gap-4 md:grid-cols-2">
+                <input
+                  type="text"
+                  placeholder="Tiêu đề bài viết"
+                  required
+                  value={insightTitle}
+                  onChange={(e) => setInsightTitle(e.target.value)}
+                  className="rounded-lg border border-sky-400/25 bg-[#020813] px-4 py-2.5 text-white"
+                />
+                <input
+                  type="text"
+                  placeholder="Slug không dấu"
+                  required
+                  value={insightSlug}
+                  onChange={(e) => setInsightSlug(e.target.value)}
+                  className="rounded-lg border border-sky-400/25 bg-[#020813] px-4 py-2.5 text-white"
+                />
+              </div>
+              <input
+                type="text"
+                placeholder="Chuyên mục (VD: Gia công CNC, Vật liệu Composite)"
+                value={insightCategory}
+                onChange={(e) => setInsightCategory(e.target.value)}
+                className="w-full rounded-lg border border-sky-400/25 bg-[#020813] px-4 py-2.5 text-white"
+              />
+              <textarea
+                rows={2}
+                placeholder="Đoạn mở đầu tóm tắt..."
+                value={insightExcerpt}
+                onChange={(e) => setInsightExcerpt(e.target.value)}
+                className="w-full rounded-lg border border-sky-400/25 bg-[#020813] px-4 py-2.5 text-white"
+              />
+              <textarea
+                rows={6}
+                placeholder="Nội dung chi tiết bài viết..."
+                value={insightContent}
+                onChange={(e) => setInsightContent(e.target.value)}
+                className="w-full rounded-lg border border-sky-400/25 bg-[#020813] px-4 py-2.5 text-white"
+              />
+              <button
+                type="submit"
+                disabled={saving}
+                className="rounded-lg bg-sky-500 px-6 py-2.5 text-sm font-semibold text-white hover:bg-sky-400"
+              >
+                {saving ? 'Đang đăng...' : 'Xuất bản Bài viết'}
+              </button>
+            </form>
+          )}
+
+          {activeTab === 'projects' && (
+            <form onSubmit={handleAddProject} className="space-y-4">
+              <h2 className="text-xl font-bold text-white">Thêm Dự án &amp; Mô hình 3D</h2>
+              <div className="grid gap-4 md:grid-cols-2">
+                <input
+                  type="text"
+                  placeholder="Tên dự án / Đồ án"
+                  required
+                  value={projTitle}
+                  onChange={(e) => setProjTitle(e.target.value)}
+                  className="rounded-lg border border-sky-400/25 bg-[#020813] px-4 py-2.5 text-white"
+                />
+                <input
+                  type="text"
+                  placeholder="Slug không dấu (VD: nghien-cuu-vat-lieu-composite)"
+                  required
+                  value={projSlug}
+                  onChange={(e) => setProjSlug(e.target.value)}
+                  className="rounded-lg border border-sky-400/25 bg-[#020813] px-4 py-2.5 text-white"
+                />
               </div>
               <textarea
                 rows={2}
-                placeholder="Tóm tắt mục tiêu khóa học"
+                placeholder="Tóm tắt ngắn gọn dự án..."
                 required
-                value={courseForm.summary}
-                onChange={(e) => setCourseForm({ ...courseForm, summary: e.target.value })}
-                className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
-              />
-              <textarea
-                rows={4}
-                placeholder="Đề cương chi tiết & đối tượng học"
-                required
-                value={courseForm.description}
-                onChange={(e) => setCourseForm({ ...courseForm, description: e.target.value })}
-                className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
-              />
-              <label className="flex items-center gap-2 text-xs">
-                <input
-                  type="checkbox"
-                  checked={courseForm.is_featured}
-                  onChange={(e) => setCourseForm({ ...courseForm, is_featured: e.target.checked })}
-                />
-                Hiển thị nổi bật trên Trang chủ
-              </label>
-              <button type="submit" disabled={busy} className="w-full rounded bg-amber-600 py-2 text-sm font-semibold text-white">
-                Xuất bản Khóa học
-              </button>
-            </form>
-
-            <div className="lg:col-span-7 space-y-3">
-              {initialCourses.map((c: any) => (
-                <div key={c.id} className="flex items-center justify-between rounded-lg border border-slate-200 bg-white p-4">
-                  <div>
-                    <span className="rounded bg-slate-100 px-2 py-0.5 font-mono text-xs">{c.level}</span>
-                    <h3 className="mt-1 font-semibold">{c.title}</h3>
-                    <p className="text-xs text-slate-500">{c.summary}</p>
-                  </div>
-                  <button onClick={() => deleteRecord('courses', c.id)} className="text-xs text-red-600 hover:underline">
-                    Xóa
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* TAB 4: THƯ VIỆN TRI THỨC */}
-        {activeTab === 'library' && (
-          <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
-            <form onSubmit={addLibraryResource} className="lg:col-span-5 space-y-4 rounded-xl border border-slate-200 bg-white p-6">
-              <h2 className="font-bold">Tải lên Tài liệu / Ghi chú Mới</h2>
-              <input
-                placeholder="Tiêu đề tài liệu"
-                required
-                value={libForm.title}
-                onChange={(e) => setLibForm({ ...libForm, title: e.target.value })}
-                className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
-              />
-              <select
-                value={libForm.resource_type}
-                onChange={(e) => setLibForm({ ...libForm, resource_type: e.target.value })}
-                className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
-              >
-                <option value="PDF">Tài liệu PDF</option>
-                <option value="WORD">Tài liệu Word (.docx)</option>
-                <option value="EXCEL">Bảng tính Excel (.xlsx)</option>
-                <option value="VIDEO">Video hướng dẫn</option>
-                <option value="NOTE">Ghi chú chuyên ngành</option>
-              </select>
-              <div>
-                <label className="block text-xs text-slate-500 mb-1">Chọn file từ máy tính (PDF, DOCX, XLSX...)</label>
-                <input type="file" onChange={(e) => setLibFile(e.target.files?.[0] || null)} className="text-xs" />
-              </div>
-              <input
-                placeholder="Hoặc dán link Video / Tài liệu ngoài (nếu có)"
-                value={libForm.external_url}
-                onChange={(e) => setLibForm({ ...libForm, external_url: e.target.value })}
-                className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
+                value={projSummary}
+                onChange={(e) => setProjSummary(e.target.value)}
+                className="w-full rounded-lg border border-sky-400/25 bg-[#020813] px-4 py-2.5 text-white"
               />
               <textarea
                 rows={3}
-                placeholder="Mô tả nội dung tài liệu"
-                value={libForm.description}
-                onChange={(e) => setLibForm({ ...libForm, description: e.target.value })}
-                className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
-              />
-              <button type="submit" disabled={busy} className="w-full rounded bg-[#0A192F] py-2 text-sm font-semibold text-white">
-                Lưu vào Thư viện
-              </button>
-            </form>
-
-            <div className="lg:col-span-7 space-y-3">
-              {initialLibrary.map((item: any) => (
-                <div key={item.id} className="flex items-center justify-between rounded-lg border border-slate-200 bg-white p-4">
-                  <div>
-                    <span className="font-mono text-xs font-semibold text-amber-700">[{item.resource_type}]</span>
-                    <h3 className="font-semibold">{item.title}</h3>
-                    {item.file_url && (
-                      <a href={item.file_url} target="_blank" rel="noreferrer" className="text-xs text-blue-600 underline">
-                        Mở tệp đã tải lên
-                      </a>
-                    )}
-                  </div>
-                  <button onClick={() => deleteRecord('library_resources', item.id)} className="text-xs text-red-600 hover:underline">
-                    Xóa
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* TAB 5: INSIGHTS & BLOG */}
-        {activeTab === 'insights' && (
-          <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
-            <form onSubmit={addInsight} className="lg:col-span-6 space-y-4 rounded-xl border border-slate-200 bg-white p-6">
-              <h2 className="font-bold">Viết Bài Phân tích / Nghiên cứu</h2>
-              <input
-                placeholder="Tiêu đề bài viết"
-                required
-                value={insightForm.title}
-                onChange={(e) => setInsightForm({ ...insightForm, title: e.target.value })}
-                className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
-              />
-              <div className="grid grid-cols-2 gap-3">
-                <input
-                  placeholder="Chuyên mục (VD: Nghiên cứu)"
-                  value={insightForm.category}
-                  onChange={(e) => setInsightForm({ ...insightForm, category: e.target.value })}
-                  className="rounded border border-slate-300 px-3 py-2 text-sm"
-                />
-                <input
-                  type="number"
-                  placeholder="Số phút đọc"
-                  value={insightForm.reading_time_minutes}
-                  onChange={(e) => setInsightForm({ ...insightForm, reading_time_minutes: Number(e.target.value) })}
-                  className="rounded border border-slate-300 px-3 py-2 text-sm"
-                />
-              </div>
-              <textarea
-                rows={2}
-                placeholder="Tóm tắt ngắn hiển thị ở danh sách"
-                required
-                value={insightForm.excerpt}
-                onChange={(e) => setInsightForm({ ...insightForm, excerpt: e.target.value })}
-                className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
+                placeholder="01. Bài toán & Bối cảnh kỹ thuật..."
+                value={projProblem}
+                onChange={(e) => setProjProblem(e.target.value)}
+                className="w-full rounded-lg border border-sky-400/25 bg-[#020813] px-4 py-2.5 text-white"
               />
               <textarea
-                rows={8}
-                placeholder="Nội dung bài viết chi tiết (hỗ trợ định dạng Markdown)..."
-                required
-                value={insightForm.content_markdown}
-                onChange={(e) => setInsightForm({ ...insightForm, content_markdown: e.target.value })}
-                className="w-full rounded border border-slate-300 px-3 py-2 text-sm font-mono"
+                rows={3}
+                placeholder="02. Phương pháp luận & Quy trình triển khai (Taguchi, RSM, ANOVA, ANN...)"
+                value={projMethod}
+                onChange={(e) => setProjMethod(e.target.value)}
+                className="w-full rounded-lg border border-sky-400/25 bg-[#020813] px-4 py-2.5 text-white"
               />
-              <button type="submit" disabled={busy} className="w-full rounded bg-amber-600 py-2 text-sm font-semibold text-white">
-                Đăng bài viết
-              </button>
-            </form>
-
-            <div className="lg:col-span-6 space-y-3">
-              {initialInsights.map((post: any) => (
-                <div key={post.id} className="flex items-start justify-between rounded-lg border border-slate-200 bg-white p-4">
-                  <div>
-                    <span className="font-mono text-xs text-slate-500">{post.category} • {post.reading_time_minutes} phút</span>
-                    <h3 className="font-semibold">{post.title}</h3>
-                  </div>
-                  <button onClick={() => deleteRecord('insights', post.id)} className="text-xs text-red-600 hover:underline">
-                    Xóa
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* TAB 6: DỰ ÁN & MÔ HÌNH 3D */}
-        {activeTab === 'projects' && (
-          <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
-            <form onSubmit={addProject} className="lg:col-span-6 space-y-3 rounded-xl border border-slate-200 bg-white p-6">
-              <h2 className="font-bold">Thêm Dự án & Mô hình 3D</h2>
-              <input
-                placeholder="Tên dự án"
-                required
-                value={projectForm.title}
-                onChange={(e) => setProjectForm({ ...projectForm, title: e.target.value })}
-                className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
+              <textarea
+                rows={3}
+                placeholder="03. Kết quả đạt được & Thực chứng số liệu..."
+                value={projResults}
+                onChange={(e) => setProjResults(e.target.value)}
+                className="w-full rounded-lg border border-sky-400/25 bg-[#020813] px-4 py-2.5 text-white"
               />
               <textarea
                 rows={2}
-                placeholder="Tóm tắt dự án"
-                required
-                value={projectForm.summary}
-                onChange={(e) => setProjectForm({ ...projectForm, summary: e.target.value })}
-                className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
+                placeholder="04. Đánh giá & Bài học rút ra..."
+                value={projLessons}
+                onChange={(e) => setProjLessons(e.target.value)}
+                className="w-full rounded-lg border border-sky-400/25 bg-[#020813] px-4 py-2.5 text-white"
               />
-              <textarea
-                rows={2}
-                placeholder="1. Bài toán & Vấn đề đặt ra"
-                required
-                value={projectForm.problem_statement}
-                onChange={(e) => setProjectForm({ ...projectForm, problem_statement: e.target.value })}
-                className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
-              />
-              <textarea
-                rows={2}
-                placeholder="2. Phương pháp tiếp cận & Kỹ thuật thực hiện"
-                required
-                value={projectForm.methodology}
-                onChange={(e) => setProjectForm({ ...projectForm, methodology: e.target.value })}
-                className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
-              />
-              <textarea
-                rows={2}
-                placeholder="3. Kết quả đo lường được"
-                required
-                value={projectForm.results}
-                onChange={(e) => setProjectForm({ ...projectForm, results: e.target.value })}
-                className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
-              />
-              <textarea
-                rows={2}
-                placeholder="4. Bài học kinh nghiệm rút ra"
-                required
-                value={projectForm.lessons_learned}
-                onChange={(e) => setProjectForm({ ...projectForm, lessons_learned: e.target.value })}
-                className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
-              />
-              <div className="grid grid-cols-2 gap-3 text-xs">
+              <div className="grid gap-4 md:grid-cols-2">
                 <div>
-                  <label className="block text-slate-500 mb-1">Ảnh bìa dự án</label>
-                  <input type="file" accept="image/*" onChange={(e) => setProjectCover(e.target.files?.[0] || null)} />
+                  <label className="block text-xs font-mono text-sky-400">Ảnh bìa dự án / Biểu đồ</label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => setProjCoverFile(e.target.files?.[0] || null)}
+                    className="mt-1.5 block text-xs text-slate-300"
+                  />
                 </div>
                 <div>
-                  <label className="block text-slate-500 mb-1">File mô hình 3D (.glb/.gltf)</label>
-                  <input type="file" accept=".glb,.gltf" onChange={(e) => setProject3D(e.target.files?.[0] || null)} />
+                  <label className="block text-xs font-mono text-sky-400">File mô hình 3D (.glb / .gltf / .step)</label>
+                  <input
+                    type="file"
+                    onChange={(e) => setProjModelFile(e.target.files?.[0] || null)}
+                    className="mt-1.5 block text-xs text-slate-300"
+                  />
                 </div>
               </div>
-              <button type="submit" disabled={busy} className="w-full rounded bg-amber-600 py-2 text-sm font-semibold text-white">
-                Lưu Dự án
+              <button
+                type="submit"
+                disabled={saving}
+                className="rounded-lg bg-sky-500 px-6 py-2.5 text-sm font-semibold text-white hover:bg-sky-400"
+              >
+                {saving ? 'Đang lưu...' : 'Lưu Dự án'}
               </button>
             </form>
-
-            <div className="lg:col-span-6 space-y-3">
-              {initialProjects.map((p: any) => (
-                <div key={p.id} className="flex items-start justify-between rounded-lg border border-slate-200 bg-white p-4">
-                  <div>
-                    <h3 className="font-semibold">{p.title}</h3>
-                    <p className="text-xs text-slate-500">{p.summary}</p>
-                    {p.model_3d_url && <span className="mt-1 inline-block font-mono text-[11px] text-emerald-700">✓ Có mô hình 3D</span>}
-                  </div>
-                  <button onClick={() => deleteRecord('projects', p.id)} className="text-xs text-red-600 hover:underline">
-                    Xóa
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* TAB 7: HỘP THƯ LIÊN HỆ */}
-        {activeTab === 'messages' && (
-          <div className="space-y-3">
-            {initialMessages.length === 0 ? (
-              <p className="rounded-lg border bg-white p-6 text-sm text-slate-500">Chưa có tin nhắn liên hệ nào.</p>
-            ) : (
-              initialMessages.map((m: any) => (
-                <div key={m.id} className="rounded-lg border border-slate-200 bg-white p-4">
-                  <div className="flex justify-between text-xs text-slate-500">
-                    <span><strong>{m.sender_name}</strong> ({m.sender_email})</span>
-                    <span>{new Date(m.created_at).toLocaleString('vi-VN')}</span>
-                  </div>
-                  <p className="mt-1 font-semibold text-sm">{m.subject}</p>
-                  <p className="mt-1 text-sm text-slate-700">{m.message}</p>
-                </div>
-              ))
-            )}
-          </div>
-        )}
+          )}
+        </div>
       </div>
+
+      <ImageCropModal
+        file={rawAvatarFile}
+        aspectRatio={0.88}
+        onCancel={() => setRawAvatarFile(null)}
+        onConfirm={(croppedFile) => {
+          setAvatarFile(croppedFile);
+          setRawAvatarFile(null);
+        }}
+      />
     </div>
   );
 }
