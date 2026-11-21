@@ -47,4 +47,20 @@
 .hover\:border-amber-400\/60:hover,
 .hover\:border-amber-400\/50:hover {
   border-color: #38bdf8 !important;
+}/* Đổi nút màu cam sang xanh nước biển sáng đồng bộ hành Thủy */
+.bg-amber-500,
+.bg-orange-500,
+.bg-orange-600 {
+  background-color: #0284c7 !important;
+  color: #ffffff !important;
+}
+.bg-amber-500:hover,
+.bg-orange-500:hover {
+  background-color: #0ea5e9 !important;
+}
+
+/* Sửa lỗi vỡ dấu tiếng Việt ở câu trích dẫn */
+blockquote {
+  font-family: system-ui, -apple-system, sans-serif !important;
+  font-style: normal !important;
 }
